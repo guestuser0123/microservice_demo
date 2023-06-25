@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  voucher_db:
+    image: mysql:8.0
+    env_file:
+      - etc/microservice_demo.env
+    ports:
+      - "${VOUCHER_DB_PUBLISHED_PORT}:${MYSQL_DB_PORT}"
+    volumes:
+      - mysql_voucher_db:/var/lib/mysql
+      - ./scripts/db_init:/docker-entrypoint-initdb.d
+    command: --init-file /docker-entrypoint-initdb.d/voucher_db_init.sql --max_connections=3000
+  order_db:
+    image: mysql:8.0
+    env_file:
+      - etc/microservice_demo.env
+    ports:
+      - "${ORDER_DB_PUBLISHED_PORT}:${MYSQL_DB_PORT}"
+    volumes:
+      - mysql_order_db:/var/lib/mysql
+      - ./scripts/db_init:/docker-entrypoint-initdb.d
+    command: --init-file /docker-entrypoint-initdb.d/order_db_init.sql --max_connections=3000
+  item_db:
+    image: mysql:8.0
+    env_file:
+      - etc/microservice_demo.env
+    ports:
+      - "${ITEM_DB_PUBLISHED_PORT}:${MYSQL_DB_PORT}"
+    volumes:
+      - mysql_item_db:/var/lib/mysql
+      - ./scripts/db_init:/docker-entrypoint-initdb.d
+    command: --init-file /docker-entrypoint-initdb.d/item_db_init.sql --max_connections=3000
+  voucher_service:
+    build:
+      context: .
+      dockerfile: dockerfiles/voucher_service.dockerfile
+    env_file:
+      - etc/microservice_demo.env
+    volumes:
+      - ./voucher_service:/app:ro
+    ports:
+    - "${VOUCHER_SERVICE_PORT}:${VOUCHER_SERVICE_PORT}"
+    depends_on:
+    - voucher_db
+    restart: on-failure
+  item_service:
+    build:
+      context: .
+      dockerfile: dockerfiles/item_service.dockerfile
+    env_file:
+      - etc/microservice_demo.env
+    volumes:
+      - ./item_service:/app:ro
+    ports:
+    - "${ITEM_SERVICE_PORT}:${ITEM_SERVICE_PORT}"
+    depends_on:
+    - item_db
+    restart: on-failure
+  order_service:
+    build:
+      context: .
+      dockerfile: dockerfiles/order_service.dockerfile
+    env_file:
+      - etc/microservice_demo.env
+    volumes:
+      - ./order_service:/app:ro
+    ports:
+    - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
+    depends_on:
+    - order_db
+    - item_service
+    - voucher_service
+    restart: on-failure
+volumes:
+  mysql_voucher_db:
+  mysql_item_db:
+  mysql_order_db:
